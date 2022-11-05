@@ -919,7 +919,7 @@ void ArduRoverOmniPlugin::ApplyMotorForces(const double _dt)
         const double vel = this->dataPtr->controls[i].joint->GetVelocity(0);
         const double error = vel - velTarget;
         const double force = this->dataPtr->controls[i].pid.Update(error, _dt);
-        //this->dataPtr->controls[i].joint->SetForce(0, force);
+        this->dataPtr->controls[i].joint->SetForce(0, force);
       }
       else if (this->dataPtr->controls[i].type == "POSITION")
       {
