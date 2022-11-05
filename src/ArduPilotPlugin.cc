@@ -39,6 +39,8 @@
 #include <string>
 #include <vector>
 #include <sdf/sdf.hh>
+#include <ros/ros.h>
+#include <mav_msgs/Actuators.h>
 #include <ignition/math/Filter.hh>
 #include <gazebo/common/Assert.hh>
 #include <gazebo/common/Plugin.hh>
@@ -325,6 +327,10 @@ class gazebo::ArduPilotPluginPrivate
   /// \brief String of the model name;
   public: std::string modelName;
 
+  public: ros::NodeHandle* nh;
+  
+  public: ros::Publisher* motor_cmd_ros_pub;
+
   /// \brief array of propellers
   public: std::vector<Control> controls;
 
@@ -395,6 +401,10 @@ void ArduPilotPlugin::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
   this->dataPtr->model = _model;
   this->dataPtr->modelName = this->dataPtr->model->GetName();
 
+  this->dataPtr->nh = new ros::NodeHandle();
+  this->dataPtr->motor_cmd_ros_pub = new ros::Publisher();
+  *(this->dataPtr->motor_cmd_ros_pub) = this->dataPtr->nh->advertise<mav_msgs::Actuators>("/m100/command_motor_speed", 1);
+  
   // modelXYZToAirplaneXForwardZDown brings us from gazebo model frame:
   // x-forward, y-right, z-down
   // to the aerospace convention: x-forward, y-left, z-up
@@ -908,6 +918,8 @@ bool ArduPilotPlugin::InitArduPilotSockets(sdf::ElementPtr _sdf) const
 void ArduPilotPlugin::ApplyMotorForces(const double _dt)
 {
   // update velocity PID for controls and apply force to joint
+  mav_msgs::Actuators cmd_msg;
+  cmd_msg.angular_velocities.clear();
   for (size_t i = 0; i < this->dataPtr->controls.size(); ++i)
   {
     if (this->dataPtr->controls[i].useForce)
@@ -919,7 +931,8 @@ void ArduPilotPlugin::ApplyMotorForces(const double _dt)
         const double vel = this->dataPtr->controls[i].joint->GetVelocity(0);
         const double error = vel - velTarget;
         const double force = this->dataPtr->controls[i].pid.Update(error, _dt);
-        this->dataPtr->controls[i].joint->SetForce(0, force);
+        //this->dataPtr->controls[i].joint->SetForce(0, force);
+		cmd_msg.angular_velocities.push_back( this->dataPtr->controls[i].cmd );
       }
       else if (this->dataPtr->controls[i].type == "POSITION")
       {
@@ -960,6 +973,7 @@ void ArduPilotPlugin::ApplyMotorForces(const double _dt)
       }
     }
   }
+  this->dataPtr->motor_cmd_ros_pub->publish(cmd_msg);
 }
 
 /////////////////////////////////////////////////
@@ -1071,9 +1085,11 @@ void ArduPilotPlugin::ReceiveMotorCommand()
           const double cmd = ignition::math::clamp(
             pkt.motorSpeed[this->dataPtr->controls[i].channel],
             -1.0f, 1.0f);
-          this->dataPtr->controls[i].cmd =
+/*          this->dataPtr->controls[i].cmd =
             this->dataPtr->controls[i].multiplier *
             (this->dataPtr->controls[i].offset + cmd);
+*/
+			this->dataPtr->controls[i].cmd = cmd ;
           // gzdbg << "apply input chan[" << this->dataPtr->controls[i].channel
           //       << "] to control chan[" << i
           //       << "] with joint name ["

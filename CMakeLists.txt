@@ -119,10 +119,13 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VALID_CXX_FLAGS}")
 ## Build ##
 ###########
 
+
 include_directories(
         ${PROJECT_SOURCE_DIR}
         include
         ${GAZEBO_INCLUDE_DIRS}
+        /opt/ros/noetic/include
+        /home/dimitris/catkin_ws/devel/include
         )
 
 link_libraries(
@@ -131,6 +134,7 @@ link_libraries(
 
 link_directories(
         ${GAZEBO_LIBRARY_DIRS}
+        /opt/ros/noetic/lib
         )
 
 set (plugins_single_header
